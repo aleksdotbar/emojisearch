@@ -8,28 +8,30 @@ const openai = new OpenAI({
 });
 
 export const generateEmojis = async (prompt: string) => {
-  const {
-    choices: [{ message }],
-  } = await openai.chat.completions.create({
-    model: "gpt-4.1-nano",
-    max_tokens: 256,
-    temperature: 0.8,
-    top_p: 0.5,
-    frequency_penalty: 0.6,
-    presence_penalty: 1,
-    messages: [
+  const { output_text } = await openai.responses.create({
+    model: "gpt-5-nano",
+    input: [
       {
-        role: "system",
-        content: "Format result as a joined string",
-      },
-      {
-        role: "user",
-        content: `Generate up to 10 emojis relevant to the prompt: "${prompt}". Do not repeat emojis.`,
+        role: "developer",
+        content: [
+          {
+            type: "input_text",
+            text: `Generate up to 20 emojis relevant to the prompt: "${prompt}". Do not repeat emojis. Format result as a joined string.`,
+          },
+        ],
       },
     ],
+    text: {
+      format: {
+        type: "text",
+      },
+    },
+    reasoning: {
+      effort: "minimal",
+    },
   });
 
-  const validEmojis = splitEmojis(message.content ?? "").filter(isValidEmoji);
+  const validEmojis = splitEmojis(output_text ?? "").filter(isValidEmoji);
 
   return uniq(validEmojis);
 };
