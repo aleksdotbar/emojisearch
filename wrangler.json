@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "emojisearch",
+  "main": "./src/server/index.ts",
+  "compatibility_date": "2025-10-08",
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  },
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "emojisearch",
+      "remote": true
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "EMOJI_CACHE",
+      "id": "5ff75762265a425facb6fa14e4bb7d08"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ]
+}
