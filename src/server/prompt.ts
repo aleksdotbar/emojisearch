@@ -12,7 +12,7 @@ Rules:
 `;
 }
 
-export function prompt(query: string, candidates: Array<{ id: string; keywords: string[] }>) {
+export function prompt(query: string, candidates: Array<{ id: string; keywords: Array<string> }>) {
   return `Query: "${query}"
 
 Candidate emojis:

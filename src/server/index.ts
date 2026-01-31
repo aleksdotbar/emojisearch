@@ -16,20 +16,34 @@ const app = new Hono<{ Bindings: Env }>()
     zValidator(
       "query",
       z.object({
-        query: z.string().min(1),
-      })
+        query: z.string().min(1).max(80),
+      }),
+      (result, c) => {
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            if (issue.code === "too_big") {
+              return c.json(
+                { ok: false as const, error: { code: "QUERY_TOO_LONG" as const } },
+                400
+              );
+            }
+          }
+
+          return c.json({ ok: false as const, error: { code: "INVALID_QUERY" as const } }, 400);
+        }
+      }
     ),
     async (c) => {
       const { query } = c.req.valid("query");
 
       const { success } = await c.env.RATE_LIMITER.limit({ key: getRateLimitKey(c) });
       if (!success) {
-        return c.json({ error: "Rate limit exceeded" }, 429);
+        return c.json({ ok: false, error: { code: "RATE_LIMIT_EXCEEDED" as const } }, 429);
       }
 
       const emojis = await searchEmojis(c.env, query);
 
-      return c.json({ emojis });
+      return c.json({ ok: true, emojis });
     }
   );
 
@@ -90,7 +104,7 @@ export type AppType = typeof app;
 
 type MatchedEmoji = {
   id: string;
-  keywords: string[];
+  keywords: Array<string>;
 };
 
 async function getMatches(env: Env, normalizedQuery: string): Promise<Array<MatchedEmoji>> {
@@ -118,8 +132,8 @@ async function getMatches(env: Env, normalizedQuery: string): Promise<Array<Matc
   return matchedEmojis;
 }
 
-function dedupeEmojis(emojis: string[]) {
-  const unique: string[] = [];
+function dedupeEmojis(emojis: Array<string>) {
+  const unique: Array<string> = [];
   const seen = new Set<string>();
 
   for (const emoji of emojis) {

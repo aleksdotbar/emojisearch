@@ -15,13 +15,6 @@ const { api } = hc<AppType>("");
 
 export const path = "/";
 
-class RateLimitError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RateLimitError";
-  }
-}
-
 export function Component() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -33,22 +26,13 @@ export function Component() {
     isFetching,
   } = useQuery({
     queryKey: ["emojis", query],
-    queryFn: () =>
-      api.emojis.search
-        .$get({ query: { query } })
-        .then((res) =>
-          res.ok
-            ? res.json()
-            : Promise.reject(
-                res.status === 429
-                  ? new RateLimitError("Whoa, slow down!")
-                  : new Error("Something's not right. Please try again.")
-              )
-        ),
+    queryFn: () => searchEmojis(query),
     enabled: !!query,
     placeholderData: keepPreviousData,
-    select: (data) => data.emojis,
-    retry: (failureCount, error) => (error instanceof RateLimitError ? false : failureCount < 3),
+    retry: (failureCount, error) =>
+      error instanceof RateLimitError || error instanceof QueryTooLongError
+        ? false
+        : failureCount < 3,
   });
 
   function submitAction(formData: FormData) {
@@ -130,3 +114,26 @@ export function EmojiButton({ emoji }: { emoji: string }) {
     </Button>
   );
 }
+
+async function searchEmojis(query: string): Promise<Array<string>> {
+  const response = await api.emojis.search.$get({ query: { query } });
+  const result = await response.json();
+
+  if (result.ok) {
+    return result.emojis;
+  }
+
+  if (result.error.code === "RATE_LIMIT_EXCEEDED") {
+    throw new RateLimitError("Whoa, slow down!");
+  }
+
+  if (result.error.code === "QUERY_TOO_LONG") {
+    throw new QueryTooLongError("Are you writing a poem, mate?");
+  }
+
+  throw new Error("Something's not right. Please try again.");
+}
+
+class RateLimitError extends Error {}
+
+class QueryTooLongError extends Error {}
