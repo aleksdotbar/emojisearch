@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "embed": "node --env-file-if-exists=.env scripts/embed.mjs",
+    "test": "node --test scripts/embeddings.test.mjs",
     "build": "tsc -b && vite build",
     "cf-typegen": "wrangler types",
     "check": "tsc && vite build && wrangler deploy --dry-run",

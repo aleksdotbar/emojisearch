@@ -14,7 +14,7 @@
   "vectorize": [
     {
       "binding": "VECTORIZE",
-      "index_name": "emojisearch",
+      "index_name": "emojisearch-voyage-4",
       "remote": true
     }
   ],

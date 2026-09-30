@@ -6,6 +6,12 @@ import { env } from "cloudflare:workers";
 import emojilib from "emojilib";
 import { Hono } from "hono";
 import * as z from "zod";
+import {
+  EMBEDDING_CACHE_KEY,
+  QUERY_EMBEDDING_MODEL,
+  embeddingProviderOptions,
+  embeddingSchema,
+} from "./embeddings";
 import { prompt, systemPrompt } from "./prompt";
 
 const app = new Hono<{ Bindings: Env }>()
@@ -47,7 +53,6 @@ const app = new Hono<{ Bindings: Env }>()
     }
   );
 
-const EMBEDDING_MODEL = "openai/text-embedding-3-small";
 const MATCH_TOP_K = 100;
 const RERANK_MODEL = "openai/gpt-oss-120b";
 const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -57,7 +62,7 @@ const gateway = createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
 
 async function searchEmojis(env: Env, query: string): Promise<Array<string>> {
   const normalizedQuery = normalizeQuery(query);
-  const searchCacheKey = `search:${RERANK_MODEL}:${normalizedQuery}`;
+  const searchCacheKey = `search:${RERANK_MODEL}:${EMBEDDING_CACHE_KEY}:${MATCH_TOP_K}:${normalizedQuery}`;
 
   const cachedSearch = await env.EMOJI_CACHE.get<Array<string>>(searchCacheKey, "json");
   if (cachedSearch?.length) {
@@ -108,7 +113,7 @@ type MatchedEmoji = {
 };
 
 async function getMatches(env: Env, normalizedQuery: string): Promise<Array<MatchedEmoji>> {
-  const matchesCacheKey = `matches:${EMBEDDING_MODEL}:${MATCH_TOP_K}:${normalizedQuery}`;
+  const matchesCacheKey = `matches:${EMBEDDING_CACHE_KEY}:${MATCH_TOP_K}:${normalizedQuery}`;
   const cachedMatches = await env.EMOJI_CACHE.get<Array<MatchedEmoji>>(matchesCacheKey, "json");
 
   if (cachedMatches?.length) {
@@ -116,11 +121,15 @@ async function getMatches(env: Env, normalizedQuery: string): Promise<Array<Matc
   }
 
   const { embedding } = await embed({
-    model: gateway.embeddingModel(EMBEDDING_MODEL),
+    model: gateway.embeddingModel(QUERY_EMBEDDING_MODEL),
     value: normalizedQuery,
+    providerOptions: embeddingProviderOptions("query"),
+    abortSignal: AbortSignal.timeout(10_000),
   });
 
-  const result = await env.VECTORIZE.query(embedding, { topK: MATCH_TOP_K });
+  const result = await env.VECTORIZE.query(embeddingSchema.parse(embedding), {
+    topK: MATCH_TOP_K,
+  });
 
   const matchedEmojis = result.matches.map((match) => ({
     id: match.id,

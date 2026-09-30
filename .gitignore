@@ -25,3 +25,9 @@ dist-ssr
 .agents
 .cursor
 .wrangler
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+vectors-voyage-4.ndjson
+vectors-voyage-4.ndjson.tmp
