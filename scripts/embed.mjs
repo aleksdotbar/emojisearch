@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { setTimeout } from "node:timers/promises";
 
 import { createGateway, embedMany } from "ai";
 import emojilib from "emojilib" with { type: "json" };
@@ -11,6 +12,7 @@ import {
 } from "../src/server/embeddings.ts";
 
 const BATCH_SIZE = 128;
+const REQUEST_INTERVAL_MS = 13_000;
 const OUTPUT_PATH = "vectors-voyage-4.ndjson";
 const TEMPORARY_PATH = `${OUTPUT_PATH}.tmp`;
 const apiKey = process.env.AI_GATEWAY_API_KEY;
@@ -26,6 +28,10 @@ const candidates = Object.entries(emojilib);
 const vectors = [];
 
 for (let offset = 0; offset < candidates.length; offset += BATCH_SIZE) {
+  if (offset > 0) {
+    await setTimeout(REQUEST_INTERVAL_MS);
+  }
+
   const batch = candidates.slice(offset, offset + BATCH_SIZE);
   const { embeddings } = await embedMany({
     model: gateway.embeddingModel(DOCUMENT_EMBEDDING_MODEL),

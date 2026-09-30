@@ -76,7 +76,14 @@ function runRebuild(directory, dimensions, countOffset) {
   const fixture = join(directory, "gateway.mjs");
   writeFileSync(fixture, `
     import assert from "node:assert/strict";
+    import timers from "node:timers/promises";
+    import { syncBuiltinESMExports } from "node:module";
     let offset = 0;
+
+    timers.setTimeout = async (delay) => {
+      assert.equal(delay, 13_000);
+    };
+    syncBuiltinESMExports();
 
     globalThis.fetch = async (url, options) => {
       assert.equal(String(url), "https://ai-gateway.vercel.sh/v3/ai/embedding-model");
