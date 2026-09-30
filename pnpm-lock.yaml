@@ -8,15 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@ai-sdk/gateway':
-        specifier: 3.0.23
-        version: 3.0.23(zod@4.3.6)
       '@ai-sdk/google':
         specifier: 3.0.13
         version: 3.0.13(zod@4.3.6)
-      '@ai-sdk/openai':
-        specifier: 3.0.19
-        version: 3.0.19(zod@4.3.6)
       '@ai-sdk/react':
         specifier: 3.0.52
         version: 3.0.52(react@19.2.0)(zod@4.3.6)
@@ -44,6 +38,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.90.20
         version: 5.90.20(react@19.2.0)
+      '@typesafe-ai/sdk':
+        specifier: 0.6.0
+        version: 0.6.0
       ai:
         specifier: 6.0.50
         version: 6.0.50(zod@4.3.6)
@@ -2267,6 +2264,10 @@ packages:
   '@types/validate-npm-package-name@4.0.2':
     resolution: {integrity: sha512-lrpDziQipxCEeK5kWxvljWYhUvOiB2A9izZd9B2AFarYAkqZshb4lPbRs7zKEic6eGtH8V/2qJW+dPp9OtF6bw==}
 
+  '@typesafe-ai/sdk@0.6.0':
+    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
+    engines: {node: '>=20'}
+
   '@typescript-eslint/eslint-plugin@8.46.4':
     resolution: {integrity: sha512-R48VhmTJqplNyDxCyqqVkFSZIx1qX6PzwqgcXn1olLrzxcSBDlOsbtcnQuQhNtnNiJ4Xe5gREI1foajYaYU2Vg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -4402,6 +4403,7 @@ snapshots:
       '@ai-sdk/provider': 3.0.5
       '@ai-sdk/provider-utils': 4.0.9(zod@4.3.6)
       zod: 4.3.6
+    optional: true
 
   '@ai-sdk/openai@3.0.23(zod@4.3.6)':
     dependencies:
@@ -6280,6 +6282,8 @@ snapshots:
   '@types/statuses@2.0.6': {}
 
   '@types/validate-npm-package-name@4.0.2': {}
+
+  '@typesafe-ai/sdk@0.6.0': {}
 
   '@typescript-eslint/eslint-plugin@8.46.4(@typescript-eslint/parser@8.46.4(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

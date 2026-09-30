@@ -1,13 +1,13 @@
 # 🔎 AI-powered emoji search
 
-Emoji search that uses a lightweight RAG flow (vector retrieval + LLM re-ranking) to find the most relevant emojis for any query.
+Emoji search using Voyage vector retrieval and Jev relevance scoring.
 
 ## 🛠️ Tech stack
 
 - ☁️ Hono + Cloudflare Workers (API)
 - 🧬 Vectorize (vector search)
 - 📦 Cloudflare KV (cache) + Rate Limiter
-- 🤖 LLM for re-ranking
+- 🤖 Jev for re-ranking, billed directly by TypeSafe
 - ⚡️ React + Vite
 - 🎨 shadcn/ui + Tailwind
 
@@ -35,3 +35,21 @@ deploying the Worker with its new binding. Generated vectors stay out of Git.
 Keep the old `emojisearch` index until the migration is verified. To roll back,
 restore the previous Worker version, which uses that index and OpenAI embeddings.
 Never point Voyage queries at the old index.
+
+## Jev reranking
+
+Set `TYPESAFE_API_KEY` in the ignored `.env` file for local development. Voyage
+continues to use `AI_GATEWAY_API_KEY` through Vercel; Jev uses the official
+`@typesafe-ai/sdk` directly against TypeSafe.
+
+Before deploying, configure the Worker secret with `pnpm exec wrangler secret put
+TYPESAFE_API_KEY`. Secret configuration and deployment are separate operations.
+
+Jev scores the 100 retrieved candidates in one request using four relevance levels:
+unrelated (0), weak association (1), useful contextual match (2), direct match (3).
+Results with scores of at least 1.5 are returned, ordered by score; ties retain vector
+order. Results can contain fewer than ten emojis, including none.
+
+Successful results, including empty lists, are cached for seven days. If Jev fails,
+times out, or returns incomplete or invalid scores, search returns the vector-ranked
+candidates without caching that fallback as a completed rerank.

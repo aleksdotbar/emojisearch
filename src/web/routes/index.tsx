@@ -83,6 +83,12 @@ export function Component() {
               ))}
             </div>
           )}
+
+          {!!query && !isFetching && !error && emojis?.length === 0 && (
+            <p role="status" className="mt-6 text-center text-muted-foreground">
+              No matching emojis.
+            </p>
+          )}
         </div>
       </div>
 

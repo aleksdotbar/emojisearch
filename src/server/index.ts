@@ -1,7 +1,5 @@
-import type { GatewayProviderOptions } from "@ai-sdk/gateway";
-import type { OpenAIResponsesProviderOptions } from "@ai-sdk/openai";
 import { zValidator } from "@hono/zod-validator";
-import { createGateway, embed, generateText, Output } from "ai";
+import { createGateway, embed } from "ai";
 import { env } from "cloudflare:workers";
 import emojilib from "emojilib";
 import { Hono } from "hono";
@@ -12,7 +10,8 @@ import {
   embeddingProviderOptions,
   embeddingSchema,
 } from "./embeddings";
-import { prompt, systemPrompt } from "./prompt";
+import { RERANK_CACHE_KEY, dedupeEmojis, rerankEmojis } from "./rerank";
+import type { MatchedEmoji } from "./rerank";
 
 const app = new Hono<{ Bindings: Env }>()
   .basePath("/api")
@@ -54,51 +53,35 @@ const app = new Hono<{ Bindings: Env }>()
   );
 
 const MATCH_TOP_K = 100;
-const RERANK_MODEL = "openai/gpt-oss-120b";
 const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
-const MIN_EMOJIS_TO_CACHE = 10;
 
 const gateway = createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
 
 async function searchEmojis(env: Env, query: string): Promise<Array<string>> {
   const normalizedQuery = normalizeQuery(query);
-  const searchCacheKey = `search:${RERANK_MODEL}:${EMBEDDING_CACHE_KEY}:${MATCH_TOP_K}:${normalizedQuery}`;
+  const searchCacheKey = `search:${RERANK_CACHE_KEY}:${EMBEDDING_CACHE_KEY}:${MATCH_TOP_K}:${normalizedQuery}`;
 
   const cachedSearch = await env.EMOJI_CACHE.get<Array<string>>(searchCacheKey, "json");
-  if (cachedSearch?.length) {
+  if (cachedSearch !== null) {
     return cachedSearch;
   }
 
   const candidates = await getMatches(env, normalizedQuery);
 
-  const { output } = await generateText({
-    model: gateway(RERANK_MODEL),
-    system: systemPrompt(),
-    prompt: prompt(normalizedQuery, candidates),
-    timeout: 10_000,
-    temperature: 0.1,
-    providerOptions: {
-      gateway: {
-        order: ["cerebras"],
-      } satisfies GatewayProviderOptions,
-      openai: {
-        reasoningEffort: "low",
-      } satisfies OpenAIResponsesProviderOptions,
-    },
-    output: Output.object({
-      schema: z.object({
-        emojis: z.array(z.string()),
-      }),
-    }),
-  });
-
-  const emojis = dedupeEmojis(output.emojis);
-
-  if (emojis.length >= MIN_EMOJIS_TO_CACHE) {
-    await env.EMOJI_CACHE.put(searchCacheKey, JSON.stringify(emojis), {
-      expirationTtl: SEARCH_CACHE_TTL_SECONDS,
+  let emojis: Array<string>;
+  try {
+    emojis = await rerankEmojis(env.TYPESAFE_API_KEY, normalizedQuery, candidates);
+  } catch (error) {
+    console.error("Emoji reranking failed; returning vector matches.", {
+      error: error instanceof Error ? error.message : String(error),
     });
+
+    return dedupeEmojis(candidates.map((candidate) => candidate.id));
   }
+
+  await env.EMOJI_CACHE.put(searchCacheKey, JSON.stringify(emojis), {
+    expirationTtl: SEARCH_CACHE_TTL_SECONDS,
+  });
 
   return emojis;
 }
@@ -106,11 +89,6 @@ async function searchEmojis(env: Env, query: string): Promise<Array<string>> {
 export default app;
 
 export type AppType = typeof app;
-
-type MatchedEmoji = {
-  id: string;
-  keywords: Array<string>;
-};
 
 async function getMatches(env: Env, normalizedQuery: string): Promise<Array<MatchedEmoji>> {
   const matchesCacheKey = `matches:${EMBEDDING_CACHE_KEY}:${MATCH_TOP_K}:${normalizedQuery}`;
@@ -139,35 +117,6 @@ async function getMatches(env: Env, normalizedQuery: string): Promise<Array<Matc
   await env.EMOJI_CACHE.put(matchesCacheKey, JSON.stringify(matchedEmojis));
 
   return matchedEmojis;
-}
-
-function dedupeEmojis(emojis: Array<string>) {
-  const unique: Array<string> = [];
-  const seen = new Set<string>();
-
-  for (const emoji of emojis) {
-    if (!isValidEmoji(emoji)) {
-      continue;
-    }
-
-    const key = normalizeEmoji(emoji);
-    if (seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    unique.push(emoji);
-  }
-
-  return unique;
-}
-
-function isValidEmoji(emoji: string) {
-  return z.emoji().safeParse(emoji).success;
-}
-
-function normalizeEmoji(emoji: string) {
-  return emoji.replace(/[\uFE0E\uFE0F]/g, "");
 }
 
 function normalizeQuery(query: string) {
