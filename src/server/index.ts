@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import * as z from "zod";
-import { GenerationError, SEARCH_CACHE_VERSION, generateEmojis } from "./generate.ts";
+import { GenerationError, generateEmojis, getSearchCacheVersion } from "./generate.ts";
 
 const app = new Hono<{ Bindings: Env }>()
   .basePath("/api")
@@ -52,7 +52,7 @@ const SEARCH_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 async function searchEmojis(env: Env, query: string, signal: AbortSignal): Promise<Array<string>> {
   const normalizedQuery = normalizeQuery(query);
-  const searchCacheKey = `search:${SEARCH_CACHE_VERSION}:${normalizedQuery}`;
+  const searchCacheKey = `search:${await getSearchCacheVersion()}:${normalizedQuery}`;
 
   const cachedSearch = await env.EMOJI_CACHE.get<Array<string>>(searchCacheKey, "json");
   if (cachedSearch !== null) {

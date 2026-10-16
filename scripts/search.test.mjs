@@ -30,6 +30,7 @@ test("search normalizes cache keys, skips old caches, and caches filtered result
   const { env, writes, entries } = environment();
   entries.set("matches:dog", JSON.stringify([{ id: "wrong" }]));
   entries.set("search:dog", JSON.stringify(["wrong"]));
+  entries.set("search:groq-gpt-oss-120b-v1:emojilib-4.0.2:dog", JSON.stringify(["wrong"]));
   let calls = 0;
   t.mock.method(globalThis, "fetch", async (_url, options) => {
     calls++;
@@ -43,7 +44,7 @@ test("search normalizes cache keys, skips old caches, and caches filtered result
   }
   assert.equal(calls, 1);
   assert.equal(writes.length, 1);
-  assert.match(writes[0].key, /^search:groq-gpt-oss-120b-v1:emojilib-4\.0\.2:dog$/);
+  assert.match(writes[0].key, /^search:[a-f0-9]{64}:dog$/);
   assert.equal(writes[0].options.expirationTtl, 604800);
 });
 
