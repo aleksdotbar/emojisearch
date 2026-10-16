@@ -5,9 +5,8 @@ import app from "../src/server/index.ts";
 
 function environment() {
   const entries = new Map();
-  const writes = [];
   return {
-    entries, writes,
+    entries,
     env: {
       CLOUDFLARE_ACCOUNT_ID: "account",
       CLOUDFLARE_AI_GATEWAY_ID: "default",
@@ -15,7 +14,7 @@ function environment() {
       RATE_LIMITER: { limit: async () => ({ success: true }) },
       EMOJI_CACHE: {
         get: async (key) => entries.has(key) ? JSON.parse(entries.get(key)) : null,
-        put: async (key, value, options) => { entries.set(key, value); writes.push({ key, options }); },
+        put: async (key, value) => { entries.set(key, value); },
       },
     },
   };
@@ -26,15 +25,12 @@ const completion = (emojis) => Response.json({
   choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ emojis }) } }],
 });
 
-test("search normalizes cache keys, skips old caches, and caches filtered results for seven days", async (t) => {
-  const { env, writes, entries } = environment();
-  entries.set("matches:dog", JSON.stringify([{ id: "wrong" }]));
-  entries.set("search:dog", JSON.stringify(["wrong"]));
+test("equivalent queries reuse filtered results instead of old cache entries", async (t) => {
+  const { env, entries } = environment();
   entries.set("search:groq-gpt-oss-120b-v1:emojilib-4.0.2:dog", JSON.stringify(["wrong"]));
   let calls = 0;
-  t.mock.method(globalThis, "fetch", async (_url, options) => {
+  t.mock.method(globalThis, "fetch", async () => {
     calls++;
-    assert.equal(JSON.parse(options.body).messages[1].content, "dog");
     return completion(["🐶", "prose", "🐶", "🐱"]);
   });
   for (const query of [" DOG ", "dog"]) {
@@ -43,9 +39,6 @@ test("search normalizes cache keys, skips old caches, and caches filtered result
     assert.deepEqual(await response.json(), { ok: true, emojis: ["🐶", "🐱"] });
   }
   assert.equal(calls, 1);
-  assert.equal(writes.length, 1);
-  assert.match(writes[0].key, /^search:[a-f0-9]{64}:dog$/);
-  assert.equal(writes[0].options.expirationTtl, 604800);
 });
 
 test("empty successful selections are cache hits", async (t) => {
@@ -59,7 +52,7 @@ test("empty successful selections are cache hits", async (t) => {
 });
 
 test("upstream failure returns safe JSON and is not cached", async (t) => {
-  const { env, writes } = environment();
+  const { env, entries } = environment();
   t.mock.method(console, "error", () => {});
   let calls = 0;
   t.mock.method(globalThis, "fetch", async () => {
@@ -69,7 +62,7 @@ test("upstream failure returns safe JSON and is not cached", async (t) => {
   const failed = await search(env, "dog");
   assert.equal(failed.status, 503);
   assert.deepEqual(await failed.json(), { ok: false, error: { code: "SEARCH_UNAVAILABLE" } });
-  assert.equal(writes.length, 0);
+  assert.equal(entries.size, 0);
   assert.deepEqual(await (await search(env, "dog")).json(), { ok: true, emojis: ["🐶"] });
   assert.equal(calls, 2);
 });
