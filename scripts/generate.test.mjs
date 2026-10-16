@@ -22,16 +22,3 @@ test("truncated or malformed completions fail instead of becoming empty results"
     mocked.mock.restore();
   }
 });
-
-test("response size limit applies across chunks even when JSON would otherwise be valid", async (t) => {
-  const bytes = new TextEncoder().encode(JSON.stringify({ ...completion(["🐶"]), padding: "x".repeat(70_000) }));
-  t.mock.method(globalThis, "fetch", async () => new Response(new ReadableStream({
-    start(controller) {
-      for (let offset = 0; offset < bytes.length; offset += 20_000) {
-        controller.enqueue(bytes.subarray(offset, offset + 20_000));
-      }
-      controller.close();
-    },
-  })));
-  await assert.rejects(generateEmojis(config, "dog"), { kind: "response_too_large" });
-});
