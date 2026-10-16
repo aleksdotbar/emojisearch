@@ -1,6 +1,6 @@
 # 🔎 AI-powered emoji search
 
-Emoji search that uses an LLM to find relevant emojis and playful associations for any query.
+Emoji search that uses an LLM to find relevant emojis for any query.
 
 ## 🛠️ Tech stack
 
