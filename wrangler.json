@@ -11,13 +11,10 @@
     "directory": "./dist/client",
     "not_found_handling": "single-page-application"
   },
-  "vectorize": [
-    {
-      "binding": "VECTORIZE",
-      "index_name": "emojisearch-voyage-4",
-      "remote": true
-    }
-  ],
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "ff9ed96ea696cbea199b8c500c61b5fb",
+    "CLOUDFLARE_AI_GATEWAY_ID": "default"
+  },
   "kv_namespaces": [
     {
       "binding": "EMOJI_CACHE",
